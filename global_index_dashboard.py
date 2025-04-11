@@ -18,11 +18,13 @@ indices = {
     'NIFTY METAL': '^NSEMETAL'
 }
 
+@st.cache_data
 def fetch_data(index_ticker, start_date, end_date):
     """Fetch historical data for a given index."""
     try:
         data = yf.download(index_ticker, start=start_date, end=end_date, progress=False)
-        if data.empty:
+        if data.empty or 'Close' not in data.columns:
+            st.warning(f"No data available for {index_ticker} in the selected date range.")
             return None
         return data
     except Exception as e:
@@ -31,13 +33,13 @@ def fetch_data(index_ticker, start_date, end_date):
 
 def calculate_metrics(data, index_name):
     """Calculate returns, ATH, and ATL for the data."""
-    if data is None or data.empty:
+    if data is None or data.empty or 'Close' not in data.columns:
         return None, None, None
     
     # Calculate returns
     start_price = data['Close'].iloc[0]
     end_price = data['Close'].iloc[-1]
-    returns = ((end_price - start_price) / start_price) * 100
+    returns = ((end_price - start_price) / start_price) * 100 if start_price != 0 else None
     
     # Calculate ATH and ATL
     ath = data['Close'].max()
@@ -63,9 +65,9 @@ def plot_indices(selected_indices, start_date, end_date):
             # Calculate metrics
             returns, ath, atl = calculate_metrics(data, index_name)
             metrics[index_name] = {
-                'Returns (%)': round(returns, 2) if returns else 'N/A',
-                'ATH': round(ath, 2) if ath else 'N/A',
-                'ATL': round(atl, 2) if atl else 'N/A'
+                'Returns (%)': round(returns, 2) if returns is not None else 'N/A',
+                'ATH': round(ath, 2) if ath is not None else 'N/A',
+                'ATL': round(atl, 2) if atl is not None else 'N/A'
             }
     
     # Plot customization
@@ -75,6 +77,7 @@ def plot_indices(selected_indices, start_date, end_date):
     plt.legend()
     plt.grid(True)
     st.pyplot(plt)
+    plt.close()
     
     # Display metrics
     st.subheader("Performance Metrics")
