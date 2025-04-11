@@ -144,17 +144,21 @@ else:
         st.line_chart(all_data.ffill())
 
 
-        st.subheader("📊 Index Performance Summary")
-        stats_df = pd.DataFrame({
-            "Return (%)": returns,
-            "All-Time High in Period": highs,
-            "All-Time Low in Period": lows
-        })
-st.dataframe(stats_df.style.format({
-    "Return (%)": "{:.2f}",
-    "All-Time High in Period": "{:,.2f}",
-    "All-Time Low in Period": "{:,.2f}"
-}, na_rep="NA"))
+    st.subheader("📊 Index Performance Summary")
+stats_df = pd.DataFrame({
+    "Return (%)": returns,
+    "All-Time High in Period": highs,
+    "All-Time Low in Period": lows
+})
+
+# Handle formatting safely
+st.dataframe(
+    stats_df.style.format({
+        "Return (%)": "{:.2f}",
+        "All-Time High in Period": "{:,.2f}",
+        "All-Time Low in Period": "{:,.2f}"
+    }, na_rep="NA")
+)
 
     
     else:
