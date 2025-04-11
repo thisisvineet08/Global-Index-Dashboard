@@ -76,6 +76,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
+# ✅ Set Streamlit page configuration first
+
 
 # Define index tickers and names
 index_tickers = {
@@ -121,13 +123,17 @@ else:
         ticker = index_tickers[name]
         try:
             data = yf.download(ticker, start=start_date, end=end_date)
+            st.write(f"Data for {name} ({ticker}):", data.head())
             if data.empty:
                 st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
                 price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
                 series = data[price_col].dropna()
+                st.write(f"{name} series sample:", series.head())
                 if series.empty:
                     st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
+                elif len(series) < 2:
+                    st.warning(f"Not enough data points for {name} to calculate return.")
                 else:
                     all_data[name] = series
                     returns[name] = ((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100
@@ -139,14 +145,19 @@ else:
     # Display charts and stats if data was fetched
     if not all_data.empty:
         st.subheader("📈 Historical Prices")
-        st.line_chart(all_data.ffill())
+        st.line_chart(all_data.ffill().bfill())
 
         st.subheader("📊 Index Performance Summary")
+        st.write("Returns:", returns)
+        st.write("Highs:", highs)
+        st.write("Lows:", lows)
+
         stats_df = pd.DataFrame({
             "Return (%)": pd.to_numeric(pd.Series(returns), errors="coerce"),
             "All-Time High in Period": pd.to_numeric(pd.Series(highs), errors="coerce"),
             "All-Time Low in Period": pd.to_numeric(pd.Series(lows), errors="coerce")
         })
+
         st.dataframe(
             stats_df.style.format({
                 "Return (%)": "{:.2f}",
