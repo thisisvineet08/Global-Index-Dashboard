@@ -77,7 +77,6 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-
 # Define index tickers and names
 index_tickers = {
     "S&P 500": "^GSPC",
@@ -126,8 +125,7 @@ else:
                 st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
                 price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
-                series = data[price_col].reindex(pd.date_range(start=start_date, end=end_date, freq='B'))
-                series = series.ffill().bfill() 
+                series = data[price_col].dropna()
                 if series.empty:
                     st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
                 else:
@@ -143,23 +141,19 @@ else:
         st.subheader("📈 Historical Prices")
         st.line_chart(all_data.ffill())
 
+        st.subheader("📊 Index Performance Summary")
+        stats_df = pd.DataFrame({
+            "Return (%)": returns,
+            "All-Time High in Period": highs,
+            "All-Time Low in Period": lows
+        })
 
-    st.subheader("📊 Index Performance Summary")
-stats_df = pd.DataFrame({
-    "Return (%)": returns,
-    "All-Time High in Period": highs,
-    "All-Time Low in Period": lows
-})
-
-# Handle formatting safely
-st.dataframe(
-    stats_df.style.format({
-        "Return (%)": "{:.2f}",
-        "All-Time High in Period": "{:,.2f}",
-        "All-Time Low in Period": "{:,.2f}"
-    }, na_rep="NA")
-)
-
-    
+        st.dataframe(
+            stats_df.style.format({
+                "Return (%)": "{:.2f}",
+                "All-Time High in Period": "{:,.2f}",
+                "All-Time Low in Period": "{:,.2f}"
+            }, na_rep="NA")
+        )
     else:
         st.info("No valid data retrieved for the selected indices and date range.")
