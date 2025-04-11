@@ -126,8 +126,8 @@ else:
                 st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
                 price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
-                series = data[price_col].reindex(pd.date_range(start=start_date, end=end_date, freq='B'))  # B = Business days
-series = series.ffill().bfill()  # Fill missing values forward, then backward
+                series = data[price_col].reindex(pd.date_range(start=start_date, end=end_date, freq='B'))
+                series = series.ffill().bfill() 
                 if series.empty:
                     st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
                 else:
