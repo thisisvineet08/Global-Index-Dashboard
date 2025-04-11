@@ -1,109 +1,113 @@
-import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-import datetime
-import numpy as np
+from datetime import datetime
+import streamlit as st
 
-# ✅ Set Streamlit page configuration first
-st.set_page_config(page_title="Global Index Dashboard", layout="wide")
-
-# Define index tickers and names
-index_tickers = {
-    "S&P 500": "^GSPC",
-    "Dow Jones": "^DJI",
-    "Nasdaq": "^IXIC",
-    "FTSE 100": "^FTSE",
-    "Nikkei 225": "^N225",
-    "Hang Seng": "^HSI",
-    "DAX": "^GDAXI",
-    "CAC 40": "^FCHI",
-    "Nifty 50": "^NSEI",
-    "Sensex": "^BSESN"
+# List of Indian indices with their Yahoo Finance tickers
+indices = {
+    'NIFTY 50': '^NSEI',
+    'SENSEX': '^BSESN',
+    'NIFTY BANK': '^NSEBANK',
+    'NIFTY MIDCAP 50': '^NSEMDCP50',
+    'NIFTY SMALLCAP 100': '^NSESMLCAP100',
+    'NIFTY IT': '^NSEIT',
+    'NIFTY PHARMA': '^NSEPHARMA',
+    'NIFTY AUTO': '^NSEAUTO',
+    'NIFTY FMCG': '^NSEFMCG',
+    'NIFTY METAL': '^NSEMETAL'
 }
 
-# Main title
-st.title("🌍 Global Index Dashboard")
-st.markdown("Analyze historical returns of global market indices.")
+def fetch_data(index_ticker, start_date, end_date):
+    """Fetch historical data for a given index."""
+    try:
+        data = yf.download(index_ticker, start=start_date, end=end_date, progress=False)
+        if data.empty:
+            return None
+        return data
+    except Exception as e:
+        st.error(f"Error fetching data for {index_ticker}: {e}")
+        return None
 
-# Date range selection on main page
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Select Start Date", datetime.date.today() - datetime.timedelta(days=3650))
-with col2:
-    end_date = st.date_input("Select End Date", datetime.date.today())
+def calculate_metrics(data, index_name):
+    """Calculate returns, ATH, and ATL for the data."""
+    if data is None or data.empty:
+        return None, None, None
+    
+    # Calculate returns
+    start_price = data['Close'].iloc[0]
+    end_price = data['Close'].iloc[-1]
+    returns = ((end_price - start_price) / start_price) * 100
+    
+    # Calculate ATH and ATL
+    ath = data['Close'].max()
+    atl = data['Close'].min()
+    
+    return returns, ath, atl
 
-# Select indices to visualize
-selected_indices = st.multiselect("Select Indices to Compare", list(index_tickers.keys()), default=list(index_tickers.keys()))
+def plot_indices(selected_indices, start_date, end_date):
+    """Plot the selected indices and display metrics."""
+    plt.figure(figsize=(12, 6))
+    
+    metrics = {}
+    
+    for index_name in selected_indices:
+        ticker = indices[index_name]
+        data = fetch_data(ticker, start_date, end_date)
+        
+        if data is not None:
+            # Normalize data to start at 100 for comparison
+            normalized_data = (data['Close'] / data['Close'].iloc[0]) * 100
+            plt.plot(normalized_data.index, normalized_data, label=index_name)
+            
+            # Calculate metrics
+            returns, ath, atl = calculate_metrics(data, index_name)
+            metrics[index_name] = {
+                'Returns (%)': round(returns, 2) if returns else 'N/A',
+                'ATH': round(ath, 2) if ath else 'N/A',
+                'ATL': round(atl, 2) if atl else 'N/A'
+            }
+    
+    # Plot customization
+    plt.title(f"Normalized Index Performance ({start_date} to {end_date})")
+    plt.xlabel("Date")
+    plt.ylabel("Normalized Value (Base = 100)")
+    plt.legend()
+    plt.grid(True)
+    st.pyplot(plt)
+    
+    # Display metrics
+    st.subheader("Performance Metrics")
+    metrics_df = pd.DataFrame(metrics).T
+    st.dataframe(metrics_df)
 
-# Ensure valid selections
-if not selected_indices:
-    st.warning("Please select at least one index.")
-elif start_date >= end_date:
-    st.warning("Please ensure the start date is before the end date.")
-else:
-    # Fetch data and calculate returns
-    all_data = pd.DataFrame()
-    returns = {}
-    highs = {}
-    lows = {}
-
-    for name in selected_indices:
-        ticker = index_tickers[name]
-        try:
-            data = yf.download(ticker, start=start_date, end=end_date)
-            if data.empty:
-                st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
-            else:
-                price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
-                series = data[price_col].dropna()
-                if series.empty:
-                    st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
-                elif len(series) < 2:
-                    st.warning(f"Not enough data points for {name} to calculate return.")
-                else:
-                    all_data[name] = series
-                    calc_return = round(((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100, 2)
-                    calc_high = round(series.max(), 2)
-                    calc_low = round(series.min(), 2)
-
-                    if all(map(lambda x: isinstance(x, (int, float)), [calc_return, calc_high, calc_low])):
-                        returns[name] = calc_return
-                        highs[name] = calc_high
-                        lows[name] = calc_low
-
-                    st.success(f"Fetched and processed data for {name}")
-        except Exception as e:
-            st.warning(f"Could not load data for {name}: {e}")
-
-    # Display charts and stats if at least one index has valid data
-    if all_data.shape[1] > 0:
-        st.subheader("📈 Historical Prices")
-        st.line_chart(all_data.ffill().bfill())
-
-        if returns:
-            st.subheader("📊 Index Performance Summary")
-
-            stats_df = pd.DataFrame({
-                "Return (%)": pd.Series(returns),
-                "All-Time High in Period": pd.Series(highs),
-                "All-Time Low in Period": pd.Series(lows)
-            })
-
-            # Drop rows where all values are NaN
-            stats_df = stats_df.dropna(how='all')
-
-            if not stats_df.empty:
-                st.dataframe(
-                    stats_df.style.format({
-                        "Return (%)": "{:.2f}",
-                        "All-Time High in Period": "{:.2f}",
-                        "All-Time Low in Period": "{:.2f}"
-                    }, na_rep="NA")
-                )
-            else:
-                st.info("No index had sufficient valid data for calculating return/high/low.")
+def main():
+    """Main function to run the Streamlit app."""
+    st.title("Indian Indices Performance Dashboard")
+    
+    # Date input
+    st.subheader("Select Date Range")
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("Start Date", value=datetime(2023, 1, 1))
+    with col2:
+        end_date = st.date_input("End Date", value=datetime.now())
+    
+    # Index selection
+    st.subheader("Select Indices")
+    selected_indices = st.multiselect(
+        "Choose indices to compare",
+        options=list(indices.keys()),
+        default=['NIFTY 50', 'SENSEX']
+    )
+    
+    if st.button("Generate Plot"):
+        if not selected_indices:
+            st.warning("Please select at least one index.")
+        elif start_date >= end_date:
+            st.warning("Start date must be before end date.")
         else:
-            st.info("No performance summary to display. All selected indices returned empty or invalid data.")
-    else:
-        st.info("No valid data retrieved for the selected indices and date range.")
+            plot_indices(selected_indices, start_date, end_date)
+
+if __name__ == "__main__":
+    main()
