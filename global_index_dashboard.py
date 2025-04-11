@@ -73,8 +73,8 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
+import numpy as np
 
-# ✅ Set Streamlit page configuration first
 
 
 # Define index tickers and names
@@ -144,6 +144,11 @@ else:
         st.line_chart(all_data.ffill().bfill())
 
         st.subheader("📊 Index Performance Summary")
+
+        # Replace any None values with np.nan for safety
+        returns = {k: v if isinstance(v, (float, int)) else np.nan for k, v in returns.items()}
+        highs = {k: v if isinstance(v, (float, int)) else np.nan for k, v in highs.items()}
+        lows = {k: v if isinstance(v, (float, int)) else np.nan for k, v in lows.items()}
 
         stats_df = pd.DataFrame({
             "Return (%)": pd.Series(returns),
