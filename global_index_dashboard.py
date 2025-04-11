@@ -74,6 +74,7 @@ end_date = st.sidebar.date_input("End Date", datetime.date.today())
 # ---------------------
 # 📊 Show Returns & High/Low Table
 # ---------------------
+all_data = pd.DataFrame()
 if not all_data.empty:
     result_data = []
 
