@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 import streamlit as st
+import numpy as np
 
 # List of Indian indices with their Yahoo Finance tickers
 indices = {
@@ -26,6 +27,10 @@ def fetch_data(index_ticker, start_date, end_date):
         if data.empty or 'Close' not in data.columns:
             st.warning(f"No data available for {index_ticker} in the selected date range.")
             return None
+        # Ensure 'Close' contains numeric data
+        if not pd.api.types.is_numeric_dtype(data['Close']):
+            st.warning(f"Invalid data format for {index_ticker} 'Close' column.")
+            return None
         return data
     except Exception as e:
         st.error(f"Error fetching data for {index_ticker}: {e}")
@@ -36,31 +41,57 @@ def calculate_metrics(data, index_name):
     if data is None or data.empty or 'Close' not in data.columns:
         return None, None, None
     
-    # Calculate returns
-    start_price = data['Close'].iloc[0]
-    end_price = data['Close'].iloc[-1]
-    returns = ((end_price - start_price) / start_price) * 100 if start_price != 0 else None
-    
-    # Calculate ATH and ATL
-    ath = data['Close'].max()
-    atl = data['Close'].min()
-    
-    return returns, ath, atl
+    try:
+        # Extract start and end prices
+        start_price = data['Close'].iloc[0]
+        end_price = data['Close'].iloc[-1]
+        
+        # Validate prices
+        if not (isinstance(start_price, (int, float)) and isinstance(end_price, (int, float))):
+            st.warning(f"Non-numeric price data for {index_name}.")
+            return None, None, None
+        if not (pd.notna(start_price) and pd.notna(end_price)):
+            st.warning(f"Missing price data for {index_name}.")
+            return None, None, None
+        
+        # Calculate returns
+        returns = None
+        if start_price != 0:
+            returns = ((end_price - start_price) / start_price) * 100
+        
+        # Calculate ATH and ATL
+        ath = data['Close'].max()
+        atl = data['Close'].min()
+        
+        # Validate ATH and ATL
+        if not (pd.notna(ath) and pd.notna(atl)):
+            st.warning(f"Invalid ATH/ATL for {index_name}.")
+            return returns, None, None
+        
+        return returns, ath, atl
+    except Exception as e:
+        st.error(f"Error calculating metrics for {index_name}: {e}")
+        return None, None, None
 
 def plot_indices(selected_indices, start_date, end_date):
     """Plot the selected indices and display metrics."""
-    plt.figure(figsize=(12, 6))
-    
+    fig, ax = plt.subplots(figsize=(12, 6))
     metrics = {}
     
     for index_name in selected_indices:
-        ticker = indices[index_name]
+        ticker = indices.get(index_name)
+        if not ticker:
+            st.warning(f"Invalid index: {index_name}")
+            continue
+        
         data = fetch_data(ticker, start_date, end_date)
         
         if data is not None:
             # Normalize data to start at 100 for comparison
-            normalized_data = (data['Close'] / data['Close'].iloc[0]) * 100
-            plt.plot(normalized_data.index, normalized_data, label=index_name)
+            start_price = data['Close'].iloc[0]
+            if pd.notna(start_price) and start_price != 0:
+                normalized_data = (data['Close'] / start_price) * 100
+                ax.plot(normalized_data.index, normalized_data, label=index_name)
             
             # Calculate metrics
             returns, ath, atl = calculate_metrics(data, index_name)
@@ -71,18 +102,21 @@ def plot_indices(selected_indices, start_date, end_date):
             }
     
     # Plot customization
-    plt.title(f"Normalized Index Performance ({start_date} to {end_date})")
-    plt.xlabel("Date")
-    plt.ylabel("Normalized Value (Base = 100)")
-    plt.legend()
-    plt.grid(True)
-    st.pyplot(plt)
-    plt.close()
+    ax.set_title(f"Normalized Index Performance ({start_date} to {end_date})")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Normalized Value (Base = 100)")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+    plt.close(fig)
     
     # Display metrics
-    st.subheader("Performance Metrics")
-    metrics_df = pd.DataFrame(metrics).T
-    st.dataframe(metrics_df)
+    if metrics:
+        st.subheader("Performance Metrics")
+        metrics_df = pd.DataFrame(metrics).T
+        st.dataframe(metrics_df)
+    else:
+        st.warning("No valid data to display metrics.")
 
 def main():
     """Main function to run the Streamlit app."""
@@ -94,7 +128,7 @@ def main():
     with col1:
         start_date = st.date_input("Start Date", value=datetime(2023, 1, 1))
     with col2:
-        end_date = st.date_input("End Date", value=datetime.now())
+        end_date = st.date_input("End Date", value=datetime.now().date())
     
     # Index selection
     st.subheader("Select Indices")
