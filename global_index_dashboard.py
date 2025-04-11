@@ -143,11 +143,10 @@ else:
 
         st.subheader("📊 Index Performance Summary")
         stats_df = pd.DataFrame({
-            "Return (%)": returns,
-            "All-Time High in Period": highs,
-            "All-Time Low in Period": lows
+            "Return (%)": pd.to_numeric(pd.Series(returns), errors="coerce"),
+            "All-Time High in Period": pd.to_numeric(pd.Series(highs), errors="coerce"),
+            "All-Time Low in Period": pd.to_numeric(pd.Series(lows), errors="coerce")
         })
-
         st.dataframe(
             stats_df.style.format({
                 "Return (%)": "{:.2f}",
