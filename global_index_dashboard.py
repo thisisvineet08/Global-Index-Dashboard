@@ -141,10 +141,16 @@ else:
     # Display charts and stats if data was fetched
     if not all_data.empty:
         st.subheader("📈 Historical Prices")
-        st.line_chart(all_data)
+        st.line_chart(all_data.ffill())
+
 
         st.subheader("📊 Index Performance Summary")
-        st.dataframe(stats_df.style.format({
+        stats_df = pd.DataFrame({
+            "Return (%)": returns,
+            "All-Time High in Period": highs,
+            "All-Time Low in Period": lows
+        })
+st.dataframe(stats_df.style.format({
     "Return (%)": "{:.2f}",
     "All-Time High in Period": "{:,.2f}",
     "All-Time Low in Period": "{:,.2f}"
