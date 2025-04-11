@@ -63,9 +63,15 @@ else:
                     st.warning(f"Not enough data points for {name} to calculate return.")
                 else:
                     all_data[name] = series
-                    returns[name] = round(((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100, 2)
-                    highs[name] = round(series.max(), 2)
-                    lows[name] = round(series.min(), 2)
+                    calc_return = round(((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100, 2)
+                    calc_high = round(series.max(), 2)
+                    calc_low = round(series.min(), 2)
+
+                    if all(map(lambda x: isinstance(x, (int, float)), [calc_return, calc_high, calc_low])):
+                        returns[name] = calc_return
+                        highs[name] = calc_high
+                        lows[name] = calc_low
+
                     st.success(f"Fetched and processed data for {name}")
         except Exception as e:
             st.warning(f"Could not load data for {name}: {e}")
@@ -78,24 +84,25 @@ else:
         if returns:
             st.subheader("📊 Index Performance Summary")
 
-            # Replace any None values with np.nan for safety
-            returns = {k: v if isinstance(v, (float, int)) else np.nan for k, v in returns.items()}
-            highs = {k: v if isinstance(v, (float, int)) else np.nan for k, v in highs.items()}
-            lows = {k: v if isinstance(v, (float, int)) else np.nan for k, v in lows.items()}
-
             stats_df = pd.DataFrame({
                 "Return (%)": pd.Series(returns),
                 "All-Time High in Period": pd.Series(highs),
                 "All-Time Low in Period": pd.Series(lows)
             })
 
-            st.dataframe(
-                stats_df.style.format({
-                    "Return (%)": "{:.2f}",
-                    "All-Time High in Period": "{:.2f}",
-                    "All-Time Low in Period": "{:.2f}"
-                }, na_rep="NA")
-            )
+            # Drop rows where all values are NaN
+            stats_df = stats_df.dropna(how='all')
+
+            if not stats_df.empty:
+                st.dataframe(
+                    stats_df.style.format({
+                        "Return (%)": "{:.2f}",
+                        "All-Time High in Period": "{:.2f}",
+                        "All-Time Low in Period": "{:.2f}"
+                    }, na_rep="NA")
+                )
+            else:
+                st.info("No index had sufficient valid data for calculating return/high/low.")
         else:
             st.info("No performance summary to display. All selected indices returned empty or invalid data.")
     else:
