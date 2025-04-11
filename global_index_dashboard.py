@@ -69,13 +69,15 @@ if selected_indices:
 else:
     st.info("Please select at least one index.")
 
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-
+# ✅ Set Streamlit page configuration first
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
 
 # Define index tickers and names
 index_tickers = {
@@ -121,14 +123,18 @@ else:
         ticker = index_tickers[name]
         try:
             data = yf.download(ticker, start=start_date, end=end_date)
-            if 'Adj Close' in data.columns and not data['Adj Close'].dropna().empty:
-                data = data['Adj Close']
-                all_data[name] = data
-                returns[name] = ((data.iloc[-1] - data.iloc[0]) / data.iloc[0]) * 100
-                highs[name] = data.max()
-                lows[name] = data.min()
+            if data.empty:
+                st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
-                st.warning(f"No data found for {name} in the selected range.")
+                price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
+                series = data[price_col].dropna()
+                if series.empty:
+                    st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
+                else:
+                    all_data[name] = series
+                    returns[name] = ((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100
+                    highs[name] = series.max()
+                    lows[name] = series.min()
         except Exception as e:
             st.warning(f"Could not load data for {name}: {e}")
 
