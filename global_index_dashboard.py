@@ -126,7 +126,8 @@ else:
                 st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
                 price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
-                series = data[price_col].dropna()
+                series = data[price_col].reindex(pd.date_range(start=start_date, end=end_date, freq='B'))  # B = Business days
+series = series.ffill().bfill()  # Fill missing values forward, then backward
                 if series.empty:
                     st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
                 else:
@@ -148,6 +149,10 @@ else:
             "All-Time High in Period": highs,
             "All-Time Low in Period": lows
         })
-        st.dataframe(stats_df.style.format("{:.2f}"))
+        st.dataframe(stats_df.style.format({
+    "Return (%)": "{:.2f}",
+    "All-Time High in Period": "{:,.2f}",
+    "All-Time Low in Period": "{:,.2f}"
+}))
     else:
         st.info("No valid data retrieved for the selected indices and date range.")
