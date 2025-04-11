@@ -68,46 +68,6 @@ if selected_indices:
 else:
     st.info("Please select at least one index.")
     
-start_date = st.sidebar.date_input("Start Date", datetime.date(1995, 1, 1))
-end_date = st.sidebar.date_input("End Date", datetime.date.today())
-
-# ---------------------
-# 📊 Show Returns & High/Low Table
-# ---------------------
-all_data = pd.DataFrame()
-if not all_data.empty:
-    result_data = []
-
-    for index in all_data.columns:
-        df = all_data[index].dropna()
-
-        if len(df) == 0:
-            continue
-
-        initial_value = df.iloc[0]
-        final_value = df.iloc[-1]
-        returns = ((final_value - initial_value) / initial_value) * 100
-
-        highest = df.max()
-        highest_date = df.idxmax().strftime('%Y-%m-%d')
-
-        lowest = df.min()
-        lowest_date = df.idxmin().strftime('%Y-%m-%d')
-
-        result_data.append({
-            "Index": index,
-            "Initial Value": round(initial_value, 2),
-            "Final Value": round(final_value, 2),
-            "Return (%)": round(returns, 2),
-            "All-Time High": round(highest, 2),
-            "High Date": highest_date,
-            "All-Time Low": round(lowest, 2),
-            "Low Date": lowest_date
-        })
-
-    result_df = pd.DataFrame(result_data)
-    st.subheader("📋 Index Performance Summary")
-    st.dataframe(result_df)
 
 import streamlit as st
 import yfinance as yf
@@ -118,6 +78,8 @@ import datetime
 # ------------------------
 # 🌍 Global Index Options
 # ------------------------
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
+st.title("🌍 Global Index Dashboard")
 index_dict = {
     "S&P 500 (USA)": "^GSPC",
     "NASDAQ (USA)": "^IXIC",
@@ -136,8 +98,7 @@ index_dict = {
 # ------------------------
 # 🧭 Page Setup
 # ------------------------
-st.set_page_config(page_title="Global Index Dashboard", layout="wide")
-st.title("🌍 Global Index Dashboard")
+
 
 # ------------------------
 # 📅 Date and Index Selection
