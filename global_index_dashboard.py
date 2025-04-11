@@ -76,7 +76,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-
+# ✅ Set Streamlit page configuration first
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
 
 # Define index tickers and names
 index_tickers = {
@@ -133,9 +134,9 @@ else:
                     st.warning(f"Not enough data points for {name} to calculate return.")
                 else:
                     all_data[name] = series
-                    returns[name] = ((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100
-                    highs[name] = series.max()
-                    lows[name] = series.min()
+                    returns[name] = round(((series.iloc[-1] - series.iloc[0]) / series.iloc[0]) * 100, 2)
+                    highs[name] = round(series.max(), 2)
+                    lows[name] = round(series.min(), 2)
         except Exception as e:
             st.warning(f"Could not load data for {name}: {e}")
 
@@ -145,21 +146,19 @@ else:
         st.line_chart(all_data.ffill().bfill())
 
         st.subheader("📊 Index Performance Summary")
-    
 
         stats_df = pd.DataFrame({
-            "Return (%)": pd.to_numeric(pd.Series(returns), errors="coerce"),
-            "All-Time High in Period": pd.to_numeric(pd.Series(highs), errors="coerce"),
-            "All-Time Low in Period": pd.to_numeric(pd.Series(lows), errors="coerce")
+            "Return (%)": pd.Series(returns),
+            "All-Time High in Period": pd.Series(highs),
+            "All-Time Low in Period": pd.Series(lows)
         })
 
         st.dataframe(
             stats_df.style.format({
                 "Return (%)": "{:.2f}",
-                "All-Time High in Period": "{:,.2f}",
-                "All-Time Low in Period": "{:,.2f}"
+                "All-Time High in Period": "{:.2f}",
+                "All-Time Low in Period": "{:.2f}"
             }, na_rep="NA")
         )
     else:
         st.info("No valid data retrieved for the selected indices and date range.")
-
