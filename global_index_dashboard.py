@@ -77,7 +77,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 # ✅ Set Streamlit page configuration first
-
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
 
 # Define index tickers and names
 index_tickers = {
@@ -123,13 +123,11 @@ else:
         ticker = index_tickers[name]
         try:
             data = yf.download(ticker, start=start_date, end=end_date)
-            st.write(f"Data for {name} ({ticker}):", data.head())
             if data.empty:
                 st.warning(f"No data downloaded for {name}. Ticker: {ticker}")
             else:
                 price_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
                 series = data[price_col].dropna()
-                st.write(f"{name} series sample:", series.head())
                 if series.empty:
                     st.warning(f"{price_col} column for {name} is empty after dropping NaNs.")
                 elif len(series) < 2:
@@ -167,3 +165,4 @@ else:
         )
     else:
         st.info("No valid data retrieved for the selected indices and date range.")
+
