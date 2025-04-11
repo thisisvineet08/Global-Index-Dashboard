@@ -109,4 +109,91 @@ if not all_data.empty:
     st.subheader("📋 Index Performance Summary")
     st.dataframe(result_df)
 
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import datetime
+
+# ------------------------
+# 🌍 Global Index Options
+# ------------------------
+index_dict = {
+    "S&P 500 (USA)": "^GSPC",
+    "NASDAQ (USA)": "^IXIC",
+    "Dow Jones (USA)": "^DJI",
+    "FTSE 100 (UK)": "^FTSE",
+    "DAX (Germany)": "^GDAXI",
+    "CAC 40 (France)": "^FCHI",
+    "Nikkei 225 (Japan)": "^N225",
+    "Hang Seng (Hong Kong)": "^HSI",
+    "Shanghai Composite (China)": "000001.SS",
+    "ASX 200 (Australia)": "^AXJO",
+    "Nifty 50 (India)": "^NSEI",
+    "Sensex (India)": "^BSESN"
+}
+
+# ------------------------
+# 🧭 Page Setup
+# ------------------------
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
+st.title("🌍 Global Index Dashboard")
+
+# ------------------------
+# 📅 Date and Index Selection
+# ------------------------
+st.subheader("🔧 Customize View")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    start_date = st.date_input("Start Date", datetime.date(2015, 1, 1))
+with col2:
+    end_date = st.date_input("End Date", datetime.date.today())
+
+selected_labels = st.multiselect(
+    "Select Indexes to Plot",
+    options=list(index_dict.keys()),
+    default=["S&P 500 (USA)", "Nifty 50 (India)"]
+)
+
+selected_indexes = [index_dict[label] for label in selected_labels]
+
+# ------------------------
+# 📥 Fetch Data
+# ------------------------
+all_data = pd.DataFrame()
+
+if selected_indexes:
+    try:
+        raw_data = yf.download(selected_indexes, start=start_date, end=end_date)
+        if 'Adj Close' in raw_data:
+            all_data = raw_data['Adj Close']
+    except Exception as e:
+        st.error(f"⚠️ Error downloading data: {e}")
+
+# ------------------------
+# 📊 Show Output
+# ------------------------
+if not all_data.empty:
+    st.subheader("📈 Index Trend")
+    st.line_chart(all_data)
+
+    st.subheader("🔁 Returns and High/Low Info")
+
+    # Calculate return, high, low
+    returns = ((all_data.iloc[-1] - all_data.iloc[0]) / all_data.iloc[0]) * 100
+    highs = all_data.max()
+    lows = all_data.min()
+
+    summary_df = pd.DataFrame({
+        "Return (%)": returns.round(2),
+        "All-Time High": highs.round(2),
+        "All-Time Low": lows.round(2)
+    })
+
+    st.dataframe(summary_df)
+
+else:
+    st.warning("👆 Please select at least one index and a valid date range.")
 
