@@ -3,6 +3,7 @@ import streamlit as st
 import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
 
 st.title("📈 Global Stock Index Dashboard")
 st.markdown("Compare the performance of major global indices over different time periods.")
@@ -74,7 +75,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 # ✅ Set Streamlit page configuration first
-st.set_page_config(page_title="Global Index Dashboard", layout="wide")
+
 
 # Define index tickers and names
 index_tickers = {
