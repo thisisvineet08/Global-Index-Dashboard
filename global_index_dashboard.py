@@ -105,39 +105,44 @@ with col2:
 # Select indices to visualize
 selected_indices = st.multiselect("Select Indices to Compare", list(index_tickers.keys()), default=list(index_tickers.keys()))
 
-# Fetch data and calculate returns
-all_data = pd.DataFrame()
-returns = {}
-highs = {}
-lows = {}
+# Ensure valid selections
+if not selected_indices:
+    st.warning("Please select at least one index.")
+elif start_date >= end_date:
+    st.warning("Please ensure the start date is before the end date.")
+else:
+    # Fetch data and calculate returns
+    all_data = pd.DataFrame()
+    returns = {}
+    highs = {}
+    lows = {}
 
-if selected_indices:
     for name in selected_indices:
         ticker = index_tickers[name]
         try:
             data = yf.download(ticker, start=start_date, end=end_date)
-            if 'Adj Close' in data.columns:
+            if 'Adj Close' in data.columns and not data['Adj Close'].dropna().empty:
                 data = data['Adj Close']
                 all_data[name] = data
-                returns[name] = ((data[-1] - data[0]) / data[0]) * 100
+                returns[name] = ((data.iloc[-1] - data.iloc[0]) / data.iloc[0]) * 100
                 highs[name] = data.max()
                 lows[name] = data.min()
+            else:
+                st.warning(f"No data found for {name} in the selected range.")
         except Exception as e:
             st.warning(f"Could not load data for {name}: {e}")
 
-# Display charts and stats
-if not all_data.empty:
-    st.subheader("📈 Historical Prices")
-    st.line_chart(all_data)
+    # Display charts and stats if data was fetched
+    if not all_data.empty:
+        st.subheader("📈 Historical Prices")
+        st.line_chart(all_data)
 
-    st.subheader("📊 Index Performance Summary")
-    stats_df = pd.DataFrame({
-        "Return (%)": returns,
-        "All-Time High in Period": highs,
-        "All-Time Low in Period": lows
-    })
-    st.dataframe(stats_df.style.format("{:.2f}"))
-else:
-    st.info("Please select at least one valid index and date range.")
-
-
+        st.subheader("📊 Index Performance Summary")
+        stats_df = pd.DataFrame({
+            "Return (%)": returns,
+            "All-Time High in Period": highs,
+            "All-Time Low in Period": lows
+        })
+        st.dataframe(stats_df.style.format("{:.2f}"))
+    else:
+        st.info("No valid data retrieved for the selected indices and date range.")
