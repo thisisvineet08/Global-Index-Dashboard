@@ -4,9 +4,6 @@ import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
 
-
-st.set_page_config(page_title="Global Index Dashboard", layout="wide")
-
 st.title("📈 Global Stock Index Dashboard")
 st.markdown("Compare the performance of major global indices over different time periods.")
 
