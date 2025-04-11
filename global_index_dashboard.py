@@ -145,9 +145,7 @@ else:
         st.line_chart(all_data.ffill().bfill())
 
         st.subheader("📊 Index Performance Summary")
-        st.write("Returns:", returns)
-        st.write("Highs:", highs)
-        st.write("Lows:", lows)
+    
 
         stats_df = pd.DataFrame({
             "Return (%)": pd.to_numeric(pd.Series(returns), errors="coerce"),
