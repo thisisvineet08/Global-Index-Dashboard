@@ -144,15 +144,12 @@ else:
         st.line_chart(all_data)
 
         st.subheader("📊 Index Performance Summary")
-        stats_df = pd.DataFrame({
-            "Return (%)": returns,
-            "All-Time High in Period": highs,
-            "All-Time Low in Period": lows
-        })
         st.dataframe(stats_df.style.format({
     "Return (%)": "{:.2f}",
     "All-Time High in Period": "{:,.2f}",
     "All-Time Low in Period": "{:,.2f}"
-}))
+}, na_rep="NA"))
+
+    
     else:
         st.info("No valid data retrieved for the selected indices and date range.")
