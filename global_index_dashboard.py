@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Index dictionary with names and Yahoo Finance tickers
+# Index dictionary with Yahoo Finance tickers
 index_dict = {
     "Nifty 50 (India)": "^NSEI",
     "Sensex (India)": "^BSESN",
@@ -42,37 +42,51 @@ else:
             st.warning(f"No data found for {index_name}.")
             continue
 
-        # Use 'Adj Close' if available, else 'Close'
+        # Use 'Adj Close' if available
         price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
 
-        if price_col not in df.columns:
-            st.warning(f"{index_name} data does not contain 'Close' or 'Adj Close'.")
-            continue
-
-        if df[price_col].dropna().empty:
+        if price_col not in df.columns or df[price_col].dropna().empty:
             st.warning(f"No valid price data for {index_name} in the selected period.")
             continue
 
         # Calculate return
         df['Return (%)'] = ((df[price_col] - df[price_col].iloc[0]) / df[price_col].iloc[0]) * 100
-        return_over_period = df['Return (%)'].iloc[-1] if not df['Return (%)'].dropna().empty else 0
 
-        # Metrics
-        all_time_high = df[price_col].max(skipna=True)
-        all_time_low = df[price_col].min(skipna=True)
-
-        # Plot
+        # Plot price chart
         fig, ax = plt.subplots(figsize=(10, 4))
         ax.plot(df.index, df[price_col], label=index_name, linewidth=2)
-        ax.set_title(f"{index_name} | Return: {return_over_period:.2f}%", fontsize=14)
+        ax.set_title(f"{index_name} | Return: {df['Return (%)'].iloc[-1]:.2f}%", fontsize=14)
         ax.set_ylabel("Price", fontsize=12)
         ax.grid(True)
         ax.legend()
         st.pyplot(fig)
 
-        # Summary
+        # Safely compute metrics
+        if df[price_col].dropna().empty:
+            all_time_high = float('nan')
+            all_time_low = float('nan')
+            return_over_period = float('nan')
+        else:
+            all_time_high = df[price_col].max(skipna=True)
+            all_time_low = df[price_col].min(skipna=True)
+            return_over_period = df['Return (%)'].iloc[-1] if not df['Return (%)'].dropna().empty else float('nan')
+
+        # Show Summary - handle NaN gracefully
         st.markdown(f"### 📈 {index_name} Summary")
-        st.markdown(f"- **All-time High (in selected period)**: `{all_time_high:.2f}`")
-        st.markdown(f"- **All-time Low (in selected period)**: `{all_time_low:.2f}`")
-        st.markdown(f"- **Return from {start_date} to {end_date}**: `{return_over_period:.2f}%`")
+
+        if pd.notna(all_time_high):
+            st.markdown(f"- **All-time High (in selected period)**: `{all_time_high:.2f}`")
+        else:
+            st.markdown("- **All-time High (in selected period)**: `Data not available`")
+
+        if pd.notna(all_time_low):
+            st.markdown(f"- **All-time Low (in selected period)**: `{all_time_low:.2f}`")
+        else:
+            st.markdown("- **All-time Low (in selected period)**: `Data not available`")
+
+        if pd.notna(return_over_period):
+            st.markdown(f"- **Return from {start_date} to {end_date}**: `{return_over_period:.2f}%`")
+        else:
+            st.markdown(f"- **Return from {start_date} to {end_date}**: `Data not available`")
+
         st.markdown("---")
