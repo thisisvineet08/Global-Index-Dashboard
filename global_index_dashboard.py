@@ -35,10 +35,18 @@ else:
         if df.empty:
             st.warning(f"No data found for {index_name}")
             continue
+# Use 'Adj Close' if available, else fallback to 'Close'
+price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
 
-        df['Return (%)'] = ((df['Adj Close'] - df['Adj Close'].iloc[0]) / df['Adj Close'].iloc[0]) * 100
-        all_time_high = df['Adj Close'].max()
-        all_time_low = df['Adj Close'].min()
+# Safety check
+if price_col not in df.columns:
+    st.warning(f"{index_name} data doesn't have 'Close' or 'Adj Close'")
+    continue
+
+df['Return (%)'] = ((df[price_col] - df[price_col].iloc[0]) / df[price_col].iloc[0]) * 100
+all_time_high = df[price_col].max()
+all_time_low = df[price_col].min()
+
         return_over_period = df['Return (%)'].iloc[-1]
 
         # Plotting
