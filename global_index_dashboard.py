@@ -133,8 +133,7 @@ index_dict = {
 }
 
 # Streamlit UI setup
-st.set_page_config(layout="wide")
-st.title("🌍 Global Indices Dashboard - Advanced Level")
+
 
 # Dark mode toggle
 theme_option = st.sidebar.selectbox("Select Theme", ["Light", "Dark"])
