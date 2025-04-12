@@ -35,13 +35,13 @@ else:
         if df.empty:
             st.warning(f"No data found for {index_name}")
             continue
-# Use 'Adj Close' if available, else fallback to 'Close'
-price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
+        # Use 'Adj Close' if available, else fallback to 'Close'
+            price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
 
 # Safety check
-if price_col not in df.columns:
-    st.warning(f"{index_name} data doesn't have 'Close' or 'Adj Close'")
-    continue
+                if price_col not in df.columns:
+                 st.warning(f"{index_name} data doesn't have 'Close' or 'Adj Close'")
+                   continue
 
 df['Return (%)'] = ((df[price_col] - df[price_col].iloc[0]) / df[price_col].iloc[0]) * 100
 all_time_high = df[price_col].max()
