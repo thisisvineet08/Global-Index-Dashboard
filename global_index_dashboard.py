@@ -18,12 +18,13 @@ index_dict = {
 }
 
 # Streamlit UI
+st.set_page_config(layout="wide")
 st.title("🌍 Global Indices Dashboard")
 
 selected_indices = st.multiselect(
     "Choose indices to plot:",
     options=list(index_dict.keys()),
-    default=["Nifty 50 (India)"]
+    default=["Nifty 50 (India)", "S&P 500 (USA)"]
 )
 
 start_date = st.date_input("Start date", pd.to_datetime("2015-01-01"))
@@ -31,62 +32,76 @@ end_date = st.date_input("End date", pd.to_datetime("today"))
 
 if start_date >= end_date:
     st.warning("⚠️ Start date must be before end date.")
-else:
-    st.subheader("📊 Index Performance")
+    st.stop()
 
-    for index_name in selected_indices:
-        ticker = index_dict[index_name]
-        df = yf.download(ticker, start=start_date, end=end_date)
+st.subheader("📊 Price Trend Comparison")
 
-        if df.empty:
-            st.warning(f"No data found for {index_name}.")
-            continue
+# Data container
+combined_df = pd.DataFrame()
+summary_list = []
 
-        # Use 'Adj Close' if available
-        price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
+for index_name in selected_indices:
+    ticker = index_dict[index_name]
+    df = yf.download(ticker, start=start_date, end=end_date)
 
-        if price_col not in df.columns or df[price_col].dropna().empty:
-            st.warning(f"No valid price data for {index_name} in the selected period.")
-            continue
+    if df.empty:
+        st.warning(f"No data found for {index_name}.")
+        continue
 
-        # Calculate return
-        df['Return (%)'] = ((df[price_col] - df[price_col].iloc[0]) / df[price_col].iloc[0]) * 100
+    price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
 
-        # Plot price chart
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(df.index, df[price_col], label=index_name, linewidth=2)
-        ax.set_title(f"{index_name} | Return: {df['Return (%)'].iloc[-1]:.2f}%", fontsize=14)
-        ax.set_ylabel("Price", fontsize=12)
-        ax.grid(True)
-        ax.legend()
-        st.pyplot(fig)
+    df = df[[price_col]].copy()
+    df.columns = [index_name]
+    df.dropna(inplace=True)
 
-        # Safely compute metrics
-        if df[price_col].dropna().empty:
-            all_time_high = float('nan')
-            all_time_low = float('nan')
-            return_over_period = float('nan')
-        else:
-            all_time_high = df[price_col].max(skipna=True)
-            all_time_low = df[price_col].min(skipna=True)
-            return_over_period = df['Return (%)'].iloc[-1] if not df['Return (%)'].dropna().empty else float('nan')
+    # Normalize to 100 for performance comparison
+    df[index_name] = (df[index_name] / df[index_name].iloc[0]) * 100
 
-        # Show Summary - handle NaN gracefully
-        st.markdown(f"### 📈 {index_name} Summary")
+    # Merge into combined_df
+    if combined_df.empty:
+        combined_df = df
+    else:
+        combined_df = combined_df.join(df, how='outer')
 
-        if pd.notna(all_time_high):
-            st.markdown(f"- **All-time High (in selected period)**: `{all_time_high:.2f}`")
-        else:
-            st.markdown("- **All-time High (in selected period)**: `Data not available`")
+    # Metrics
+    raw_df = yf.download(ticker, start=start_date, end=end_date)
+    if price_col not in raw_df.columns or raw_df[price_col].dropna().empty:
+        continue
 
-        if pd.notna(all_time_low):
-            st.markdown(f"- **All-time Low (in selected period)**: `{all_time_low:.2f}`")
-        else:
-            st.markdown("- **All-time Low (in selected period)**: `Data not available`")
+    price_series = raw_df[price_col].dropna()
 
-        if pd.notna(return_over_period):
-            st.markdown(f"- **Return from {start_date} to {end_date}**: `{return_over_period:.2f}%`")
-        else:
-            st.markdown(f"- **Return from {start_date} to {end_date}**: `Data not available`")
+    try:
+        all_time_high = float(price_series.max())
+        all_time_low = float(price_series.min())
+        return_over_period = float(((price_series.iloc[-1] - price_series.iloc[0]) / price_series.iloc[0]) * 100)
+    except Exception:
+        all_time_high = all_time_low = return_over_period = float('nan')
 
-        st.markdown("---")
+    summary_list.append({
+        "Index": index_name,
+        "All-time High": all_time_high,
+        "All-time Low": all_time_low,
+        "Return (%)": return_over_period
+    })
+
+# Plot all selected indices on one graph
+if not combined_df.empty:
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for col in combined_df.columns:
+        ax.plot(combined_df.index, combined_df[col], label=col, linewidth=2)
+
+    ax.set_title("Normalized Price Comparison (Base = 100)", fontsize=16)
+    ax.set_ylabel("Normalized Index Value")
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
+
+# Show Summary Table
+if summary_list:
+    st.subheader("📈 Summary Statistics")
+    summary_df = pd.DataFrame(summary_list)
+    st.dataframe(summary_df.set_index("Index").style.format({
+        "All-time High": "{:.2f}",
+        "All-time Low": "{:.2f}",
+        "Return (%)": "{:.2f}"
+    }))
