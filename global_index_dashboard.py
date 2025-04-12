@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Hide Streamlit warnings
-st.set_option('deprecation.showPyplotGlobalUse', False)
+
 
 # Global index tickers
 index_dict = {
