@@ -18,11 +18,7 @@ index_dict = {
     'S&P 500': '^GSPC',
     'Dow Jones': '^DJI',
     'Nasdaq': '^IXIC',
-    'FTSE 100': '^FTSE',
     'Nikkei 225': '^N225',
-    'Hang Seng': '^HSI',
-    'DAX': '^GDAXI',
-    'CAC 40': '^FCHI',
     'Nifty 50': '^NSEI',
     'Sensex': '^BSESN'
 }
