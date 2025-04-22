@@ -6,6 +6,7 @@ import streamlit as st
 from datetime import datetime
 
 # -------- Streamlit UI --------
+st.set_page_config(page_title="Global Index Dashboard", layout="wide")
 st.title("🌐 Global Index Dashboard")
 st.markdown("Analyze major stock indices (Nifty 50, Sensex, S&P 500, etc.) over a custom date range.")
 
@@ -42,9 +43,10 @@ selected_tickers = {name: index_dict[name] for name in selected_indices}
 
 # -------- Download Data --------
 st.subheader("📥 Downloading Data...")
+
 try:
     raw_data = yf.download(
-        list(selected_tickers.values()),
+        tickers=list(selected_tickers.values()),
         start=start_date,
         end=end_date,
         group_by='ticker',
@@ -55,28 +57,34 @@ try:
     price_data = pd.DataFrame()
 
     for name, ticker in selected_tickers.items():
-        if ticker in raw_data.columns.levels[0]:
-            price_data[name] = raw_data[ticker]['Close']
+        if isinstance(raw_data.columns, pd.MultiIndex):
+            if ticker in raw_data.columns.levels[0]:
+                price_data[name] = raw_data[ticker]['Close']
+        else:
+            price_data[name] = raw_data['Close']
+
 except Exception as e:
     st.error(f"Error downloading data: {e}")
     st.stop()
 
-# Drop indices with no data
 price_data.dropna(axis=1, how='all', inplace=True)
 
 # -------- Plot Normalized Performance --------
 st.subheader("📊 Normalized Index Performance (Base 100)")
+
 normalized = price_data / price_data.iloc[0] * 100
+
 fig, ax = plt.subplots(figsize=(14, 6))
 normalized.plot(ax=ax)
-plt.title("Index Performance (Normalized to 100)")
-plt.xlabel("Date")
-plt.ylabel("Normalized Price")
-plt.grid(True)
+ax.set_title("Index Performance (Normalized to 100)")
+ax.set_xlabel("Date")
+ax.set_ylabel("Normalized Price")
+ax.grid(True)
 st.pyplot(fig)
 
 # -------- Returns Calculation --------
 st.subheader("📈 Total Returns (%)")
+
 returns = (price_data.iloc[-1] / price_data.iloc[0] - 1) * 100
 returns = returns.sort_values(ascending=False)
 st.dataframe(returns.round(2).to_frame(name="Return (%)"))
@@ -84,16 +92,17 @@ st.dataframe(returns.round(2).to_frame(name="Return (%)"))
 # Bar plot of returns
 fig2, ax2 = plt.subplots()
 returns.plot(kind='bar', ax=ax2, color='skyblue')
-plt.title("Returns (%) from {} to {}".format(start_date, end_date))
-plt.ylabel("Return (%)")
+ax2.set_title(f"Returns (%) from {start_date} to {end_date}")
+ax2.set_ylabel("Return (%)")
 st.pyplot(fig2)
 
 # -------- Correlation Matrix --------
 st.subheader("🔗 Correlation of Daily Returns")
+
 daily_returns = price_data.pct_change().dropna()
 correlation = daily_returns.corr()
 
 fig3, ax3 = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlation, annot=True, cmap='coolwarm', fmt=".2f", ax=ax3)
-plt.title("Correlation Matrix")
+ax3.set_title("Correlation Matrix of Daily Returns")
 st.pyplot(fig3)
