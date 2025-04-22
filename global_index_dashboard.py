@@ -1,16 +1,19 @@
 import yfinance as yf
-pip install plotly
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.graph_objects as go
+import streamlit as st
 from datetime import datetime
 
-# -------- Settings --------
-start_date = "2020-01-01"
-end_date = "2024-12-31"
+# -------- Streamlit UI --------
+st.title("🌐 Global Index Dashboard")
+st.markdown("Analyze major stock indices (Nifty 50, Sensex, S&P 500, etc.) over a custom date range.")
 
-# -------- 10 Major Indices with Yahoo Tickers --------
+# Date inputs
+start_date = st.date_input("Start Date", datetime(2020, 1, 1))
+end_date = st.date_input("End Date", datetime.today())
+
+# -------- Index Dictionary --------
 index_dict = {
     'S&P 500': '^GSPC',
     'Dow Jones': '^DJI',
@@ -24,41 +27,55 @@ index_dict = {
     'Sensex': '^BSESN'
 }
 
+tickers = list(index_dict.values())
+names = list(index_dict.keys())
+
 # -------- Download Data --------
-data = yf.download(list(index_dict.values()), start=start_date, end=end_date)['Adj Close']
-data.columns = index_dict.keys()
+st.subheader("📥 Downloading Data...")
+try:
+    raw_data = yf.download(tickers, start=start_date, end=end_date, group_by='ticker', auto_adjust=True)
+    price_data = pd.DataFrame()
 
-# -------- Normalize and Plot --------
-normalized = data / data.iloc[0] * 100  # Base 100
-plt.figure(figsize=(14, 8))
-for column in normalized.columns:
-    plt.plot(normalized[column], label=column)
-plt.title('Index Performance (Normalized)')
-plt.xlabel('Date')
-plt.ylabel('Normalized Price (Base 100)')
-plt.legend()
+    for name, ticker in index_dict.items():
+        if ticker in raw_data.columns.levels[0]:
+            price_data[name] = raw_data[ticker]['Close']
+except Exception as e:
+    st.error(f"Error downloading data: {e}")
+    st.stop()
+
+# Drop indices with no data
+price_data.dropna(axis=1, how='all', inplace=True)
+
+# -------- Plot Normalized Performance --------
+st.subheader("📊 Normalized Index Performance (Base 100)")
+normalized = price_data / price_data.iloc[0] * 100
+fig, ax = plt.subplots(figsize=(14, 6))
+normalized.plot(ax=ax)
+plt.title("Index Performance (Normalized to 100)")
+plt.xlabel("Date")
+plt.ylabel("Normalized Price")
 plt.grid(True)
-plt.tight_layout()
-plt.show()
+st.pyplot(fig)
 
-# -------- Calculate Returns --------
-returns = (data.iloc[-1] / data.iloc[0] - 1) * 100
+# -------- Returns Calculation --------
+st.subheader("📈 Total Returns (%)")
+returns = (price_data.iloc[-1] / price_data.iloc[0] - 1) * 100
 returns = returns.sort_values(ascending=False)
-print("Returns over selected period:")
-print(returns.round(2))
+st.dataframe(returns.round(2).to_frame(name="Return (%)"))
 
-# Plot Returns
-fig = go.Figure(data=[go.Bar(x=returns.index, y=returns.values, marker_color='indigo')])
-fig.update_layout(title="Returns (%) from {} to {}".format(start_date, end_date),
-                  yaxis_title="Return (%)", xaxis_title="Index")
-fig.show()
+# Bar plot of returns
+fig2, ax2 = plt.subplots()
+returns.plot(kind='bar', ax=ax2, color='skyblue')
+plt.title("Returns (%) from {} to {}".format(start_date, end_date))
+plt.ylabel("Return (%)")
+st.pyplot(fig2)
 
 # -------- Correlation Matrix --------
-daily_returns = data.pct_change().dropna()
+st.subheader("🔗 Correlation of Daily Returns")
+daily_returns = price_data.pct_change().dropna()
 correlation = daily_returns.corr()
 
-plt.figure(figsize=(10, 8))
-sns.heatmap(correlation, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title("Correlation Matrix of Daily Returns")
-plt.tight_layout()
-plt.show()
+fig3, ax3 = plt.subplots(figsize=(10, 8))
+sns.heatmap(correlation, annot=True, cmap='coolwarm', fmt=".2f", ax=ax3)
+plt.title("Correlation Matrix")
+st.pyplot(fig3)
