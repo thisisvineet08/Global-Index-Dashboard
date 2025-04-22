@@ -2,116 +2,62 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import streamlit as st
+import plotly.graph_objects as go
 from datetime import datetime
 
-# List of major indices with robust tickers
-indices = {
-    'Nifty 50': '^NSEI',
-    'Sensex': '^BSESN',
+# -------- Settings --------
+start_date = "2020-01-01"
+end_date = "2024-12-31"
+
+# -------- 10 Major Indices with Yahoo Tickers --------
+index_dict = {
     'S&P 500': '^GSPC',
-    'NASDAQ': '^IXIC',
     'Dow Jones': '^DJI',
+    'Nasdaq': '^IXIC',
     'FTSE 100': '^FTSE',
-    'DAX': '^GDAXI',
     'Nikkei 225': '^N225',
     'Hang Seng': '^HSI',
-    'Shanghai Composite': '000001.SS'
+    'DAX': '^GDAXI',
+    'CAC 40': '^FCHI',
+    'Nifty 50': '^NSEI',
+    'Sensex': '^BSESN'
 }
 
-def fetch_data(start_date, end_date, selected_indices):
-    """Fetch historical data with comprehensive error handling"""
-    data = {}
-    failures = 0
-    
-    for name in selected_indices:
-        ticker = indices.get(name)
-        if not ticker:
-            st.warning(f"Ticker not found for {name}")
-            continue
-            
-        try:
-            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
-            if df.empty:
-                st.warning(f"No data for {name} in selected date range")
-                failures += 1
-                continue
-                
-            # Use Close if Adj Close not available
-            price_series = df['Adj Close'] if 'Adj Close' in df.columns else df['Close']
-            data[name] = price_series
-            
-        except Exception as e:
-            st.error(f"Failed to fetch {name}: {str(e)}")
-            failures += 1
-    
-    if failures == len(selected_indices):
-        st.error("Failed to fetch data for all selected indices. Please try different dates or indices.")
-        return None
-        
-    if not data:
-        st.error("No valid data fetched. Please check your selections.")
-        return None
-        
-    # Create DataFrame with proper date index
-    try:
-        combined = pd.DataFrame(data)
-        return combined.dropna()
-    except Exception as e:
-        st.error(f"Error creating DataFrame: {str(e)}")
-        return None
+# -------- Download Data --------
+data = yf.download(list(index_dict.values()), start=start_date, end=end_date)['Adj Close']
+data.columns = index_dict.keys()
 
-# Streamlit UI
-st.title("📈 Global Indices Dashboard")
+# -------- Normalize and Plot --------
+normalized = data / data.iloc[0] * 100  # Base 100
+plt.figure(figsize=(14, 8))
+for column in normalized.columns:
+    plt.plot(normalized[column], label=column)
+plt.title('Index Performance (Normalized)')
+plt.xlabel('Date')
+plt.ylabel('Normalized Price (Base 100)')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
-# Date input with validation
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Start Date", datetime(2023, 1, 1))
-with col2:
-    end_date = st.date_input("End Date", datetime.today())
+# -------- Calculate Returns --------
+returns = (data.iloc[-1] / data.iloc[0] - 1) * 100
+returns = returns.sort_values(ascending=False)
+print("Returns over selected period:")
+print(returns.round(2))
 
-if start_date >= end_date:
-    st.error("End date must be after start date")
+# Plot Returns
+fig = go.Figure(data=[go.Bar(x=returns.index, y=returns.values, marker_color='indigo')])
+fig.update_layout(title="Returns (%) from {} to {}".format(start_date, end_date),
+                  yaxis_title="Return (%)", xaxis_title="Index")
+fig.show()
 
-# Index selection
-selected_indices = st.multiselect(
-    "Select Indices (2+ for correlation)",
-    list(indices.keys()),
-    default=["Nifty 50", "Sensex", "S&P 500"]
-)
+# -------- Correlation Matrix --------
+daily_returns = data.pct_change().dropna()
+correlation = daily_returns.corr()
 
-if st.button("Analyze", type="primary"):
-    if not selected_indices:
-        st.error("Please select at least one index")
-    elif start_date >= end_date:
-        st.error("Please fix date range")
-    else:
-        with st.spinner("Fetching data..."):
-            data = fetch_data(start_date, end_date, selected_indices)
-            
-        if data is not None and not data.empty:
-            # Plot performance
-            st.subheader("📊 Normalized Performance (Base=100)")
-            fig, ax = plt.subplots(figsize=(12, 6))
-            for idx in data.columns:
-                normalized = (data[idx] / data[idx].iloc[0]) * 100
-                ax.plot(normalized, label=idx)
-            ax.set_title("Indices Performance Comparison")
-            ax.set_ylabel("Normalized Value")
-            ax.legend()
-            ax.grid()
-            st.pyplot(fig)
-            
-            # Calculate returns
-            st.subheader("💰 Returns Analysis")
-            returns = ((data.iloc[-1] - data.iloc[0]) / data.iloc[0]) * 100
-            st.dataframe(returns.round(2).rename("Return (%)").to_frame().style.background_gradient(cmap='RdYlGn'))
-            
-            # Correlation matrix
-            if len(selected_indices) > 1:
-                st.subheader("🔗 Correlation Matrix")
-                corr = data.pct_change().corr()
-                fig, ax = plt.subplots(figsize=(10, 8))
-                sns.heatmap(corr, annot=True, cmap="coolwarm", vmin=-1, vmax=1, ax=ax)
-                st.pyplot(fig)
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("Correlation Matrix of Daily Returns")
+plt.tight_layout()
+plt.show()
