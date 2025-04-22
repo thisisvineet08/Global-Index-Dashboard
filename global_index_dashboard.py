@@ -18,21 +18,43 @@ index_dict = {
     'S&P 500': '^GSPC',
     'Dow Jones': '^DJI',
     'Nasdaq': '^IXIC',
+    'FTSE 100': '^FTSE',
     'Nikkei 225': '^N225',
+    'Hang Seng': '^HSI',
+    'DAX': '^GDAXI',
+    'CAC 40': '^FCHI',
     'Nifty 50': '^NSEI',
     'Sensex': '^BSESN'
 }
 
-tickers = list(index_dict.values())
-names = list(index_dict.keys())
+# -------- Index Selection --------
+selected_indices = st.multiselect(
+    "Select indices to analyze:",
+    options=list(index_dict.keys()),
+    default=['Nifty 50', 'Sensex', 'S&P 500', 'Dow Jones']
+)
+
+if not selected_indices:
+    st.warning("Please select at least one index to proceed.")
+    st.stop()
+
+selected_tickers = {name: index_dict[name] for name in selected_indices}
 
 # -------- Download Data --------
 st.subheader("📥 Downloading Data...")
 try:
-    raw_data = yf.download(tickers, start=start_date, end=end_date, group_by='ticker', auto_adjust=True)
+    raw_data = yf.download(
+        list(selected_tickers.values()),
+        start=start_date,
+        end=end_date,
+        group_by='ticker',
+        auto_adjust=True,
+        progress=False
+    )
+
     price_data = pd.DataFrame()
 
-    for name, ticker in index_dict.items():
+    for name, ticker in selected_tickers.items():
         if ticker in raw_data.columns.levels[0]:
             price_data[name] = raw_data[ticker]['Close']
 except Exception as e:
