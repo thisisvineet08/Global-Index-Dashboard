@@ -2,9 +2,10 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import streamlit as st
 from datetime import datetime
 
-# List of major indices (Yahoo Finance tickers)
+# List of major indices
 indices = {
     'Nifty 50': '^NSEI', 
     'Sensex': '^BSESN', 
@@ -19,61 +20,69 @@ indices = {
 }
 
 def fetch_data(start_date, end_date):
-    """Fetch historical data for all indices"""
+    """Fetch historical data for all indices (handles multi-column yfinance output)"""
     data = {}
     for name, ticker in indices.items():
-        df = yf.download(ticker, start=start_date, end=end_date)['Adj Close']
-        data[name] = df
+        try:
+            df = yf.download(ticker, start=start_date, end=end_date)
+            if 'Adj Close' in df.columns:
+                adj_close = df['Adj Close']
+            elif 'Close' in df.columns:
+                adj_close = df['Close']
+            else:
+                st.warning(f"Skipping {name} - No 'Adj Close' or 'Close' column found")
+                continue
+            data[name] = adj_close
+        except Exception as e:
+            st.error(f"Failed to fetch {name} ({ticker}): {str(e)}")
     return pd.DataFrame(data).dropna()
 
-def plot_indices(data, selected_indices):
-    """Plot selected indices (normalized to 100 at start)"""
-    plt.figure(figsize=(14, 7))
-    for idx in selected_indices:
-        if idx in data.columns:
-            normalized = (data[idx] / data[idx].iloc[0]) * 100
-            plt.plot(normalized, label=idx)
-    plt.title('Indices Performance (Normalized to 100)')
-    plt.xlabel('Date')
-    plt.ylabel('Normalized Price')
-    plt.legend()
-    plt.grid()
-    plt.show()
+# Streamlit UI
+st.title("Global Indices Dashboard")
 
-def calculate_returns(data, selected_indices):
-    """Calculate and print returns for selected indices"""
-    returns = {}
-    for idx in selected_indices:
-        if idx in data.columns:
-            total_return = ((data[idx].iloc[-1] - data[idx].iloc[0]) / data[idx].iloc[0]) * 100
-            returns[idx] = round(total_return, 2)
-    return pd.Series(returns).rename('Total Return (%)')
+# Date input
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Start Date", datetime(2023, 1, 1))
+with col2:
+    end_date = st.date_input("End Date", datetime.today())
 
-def plot_correlation(data, selected_indices):
-    """Plot correlation heatmap for selected indices"""
-    corr = data[selected_indices].pct_change().corr()
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-    plt.title('Correlation Matrix of Selected Indices')
-    plt.show()
+# Index selection
+selected_indices = st.multiselect(
+    "Select Indices", 
+    list(indices.keys()), 
+    default=["Nifty 50", "Sensex", "S&P 500"]
+)
 
-# Example Usage
-if __name__ == "__main__":
-    # User inputs (customize these)
-    start_date = '2023-01-01'
-    end_date = '2024-01-01'
-    selected_indices = ['Nifty 50', 'Sensex', 'S&P 500', 'NASDAQ', 'FTSE 100']
-    
-    # Fetch and process data
-    data = fetch_data(start_date, end_date)
-    
-    # Plot performance
-    plot_indices(data, selected_indices)
-    
-    # Calculate returns
-    returns = calculate_returns(data, selected_indices)
-    print("\nTotal Returns (%):")
-    print(returns.to_string())
-    
-    # Plot correlation
-    plot_correlation(data, selected_indices)
+if st.button("Analyze"):
+    if not selected_indices:
+        st.error("Please select at least one index!")
+    else:
+        data = fetch_data(start_date, end_date)
+        
+        # Plot performance
+        st.subheader("Normalized Performance (Base=100)")
+        fig, ax = plt.subplots(figsize=(12, 6))
+        for idx in selected_indices:
+            if idx in data.columns:
+                normalized = (data[idx] / data[idx].iloc[0]) * 100
+                ax.plot(normalized, label=idx)
+        ax.set_title("Indices Performance")
+        ax.legend()
+        ax.grid()
+        st.pyplot(fig)
+        
+        # Calculate returns
+        st.subheader("Total Returns (%)")
+        returns = {}
+        for idx in selected_indices:
+            if idx in data.columns:
+                returns[idx] = round(((data[idx].iloc[-1] - data[idx].iloc[0]) / data[idx].iloc[0]) * 100, 2)
+        st.table(pd.Series(returns).rename("Return"))
+        
+        # Correlation heatmap
+        st.subheader("Correlation Matrix")
+        corr = data[selected_indices].pct_change().corr()
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(corr, annot=True, cmap="coolwarm", vmin=-1, vmax=1, ax=ax)
+        st.pyplot(fig)
